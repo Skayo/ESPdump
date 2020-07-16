@@ -2,6 +2,13 @@
 
 Text dump service, similar to PrivateBin, running on an ESP8266/NodeMCU
 
+## Setup
+
+- SD Card with the content of `site` and a directory named `dumps` on it
+- SD Card Reader connected to NodeMCU
+- Edit `DDNS.h`, `WiFi.h`, `WiFi.cpp` and `MDNS.h` to fit your needs
+- Build and Upload with Platform.IO
+
 ## Notes
 
 ```
