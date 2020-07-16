@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html class="has-background-grey-dark">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>ESPdump</title>
+		
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.17.1/build/styles/obsidian.min.css">
+
+		<script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/showdown@1.9.1/dist/showdown.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.17.1/build/highlight.min.js"></script>
+
+		<style>
+			.content h1, .content h2, .content h3, .content h4, .content h5, .content h6, .content strong, .content th {
+				color: #fff !important;
+			}
+
+			.content blockquote p {
+				color: #4a4a4a !important;
+			}
+
+			.content a:hover {
+				color: #2f5ca6 !important;
+			}
+		</style>
+	</head>
+	<body class="has-navbar-fixed-top">
+		<nav class="navbar is-dark is-fixed-top" role="navigation" aria-label="main navigation">
+			<div class="container">
+				<div class="navbar-brand">
+					<div class="navbar-item">
+						<h5 class="title is-5 has-text-white is-unselectable">
+							ESPdump
+						</h5>
+					</div>
+
+					<a id="navbar-burger" role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false">
+						<span aria-hidden="true"></span>
+						<span aria-hidden="true"></span>
+						<span aria-hidden="true"></span>
+					</a>
+				</div>
+
+				<div class="navbar-menu has-background-dark" id="navbar-menu">
+
+					<div class="navbar-start">
+						<div class="navbar-item">
+							<a class="button is-success" target="_blank" href="/">
+								<span class="icon">
+									<i class="fas fa-file"></i>
+								</span>
+								<span>
+									New
+								</span>
+							</a>
+						</div>
+					</div>
+
+					<div class="navbar-end">
+						<div class="navbar-item">
+							<div class="buttons">
+								<a class="button is-link" href="#" id="rawtext">
+									<span class="icon">
+										<i class="fas fa-font"></i>
+									</span>
+									<span>
+										Raw Text
+									</span>
+								</a>
+
+								<button class="button is-info" id="show-qrcode">
+									<span class="icon">
+										<i class="fas fa-qrcode"></i>
+									</span>
+									<span>
+										QR Code
+									</span>
+								</button>
+							</div>
+						</div>
+					</div>
+
+				</div>
+			</div>
+		</nav>
+
+		<main class="columns is-centered is-vcentered has-text-white" style="margin-top: 1rem;">
+			<div class="column is-half">
+
+				<div id="notif">
+					<div class="notification is-success" id="notif-dumplink" style="display: none">
+						<span class="icon" style="vertical-align: text-top;">
+							<i class="fas fa-check"></i>
+						</span>
+						<span>Your dump is at <a id="dumplink" href="#"></a> (Hit [Ctrl]+[C] to copy)</span>
+					</div>
+
+					<div class="notification is-warning" id="notif-notfound" style="display: none">
+						<span class="icon" style="vertical-align: text-top;">
+							<i class="fas fa-exclamation-triangle"></i>
+						</span>
+						<span>Could not get paste data: Invalid dump ID.</span>
+					</div>
+
+					<div class="notification is-info" id="notif-selfdelete" style="display: none">
+						<span class="icon" style="vertical-align: text-top;">
+							<i class="fas fa-fire"></i>
+						</span>
+						<span>FOR YOUR EYES ONLY. Don't close this window, this dump can't be displayed again.</span>
+					</div>
+
+					<div class="notification is-warning" id="notif-decrypterror" style="display: none">
+						<span class="icon" style="vertical-align: text-top;">
+							<i class="fas fa-exclamation-triangle"></i>
+						</span>
+						<span>Could not decrypt data. Did you enter a wrong password? Reload the site to retry.</span>
+					</div>
+
+					<div class="notification is-danger" id="notif-error" style="display: none; margin-bottom: 1.5rem;">
+						<span class="icon" style="vertical-align: text-top;">
+							<i class="fas fa-exclamation"></i>
+						</span>
+						<span>An error occured.</span>
+					</div>
+				</div>
+
+				<div id="view">
+					<div id="view-plaintext" class="box has-background-dark has-text-white is-family-monospace" style="display: none; white-space: pre-wrap; word-break: break-all;"></div>
+
+					<div id="view-markdown" class="content has-text-white" style="display: none;"></div>
+
+					<div id="view-sourcecode" style="display: none;">
+						<pre class="has-text-white has-background-grey-dark is-paddingless"><code id="sourcecode-code" class="hljs"></code></pre>
+					</div>
+				</div>
+
+			</div>
+		</main>
+
+		<div class="modal" id="qrcode-modal">
+			<div class="modal-background" id="qrcode-modal-bg"></div>
+			<div class="modal-content" style="height: 220px; width: 220px;">
+				<p class="image is-square">
+					<img id="qrcode" src="" alt="QR Code">
+				</p>
+			</div>
+		</div>
+
+		<script type="application/javascript">
+			let justCreated = false;
+			let notFound = false;
+
+			const showdownConverter = new showdown.Converter({
+				strikethrough: true,
+				tables: true,
+				tablesHeaderId: true,
+				simplifiedAutoLink: true,
+				excludeTrailingPunctuationFromURLs: true,
+				openLinksInNewWindow: true
+			});
+
+			String.prototype.norm_to_unicode=function(){return decodeURIComponent(escape(this))};
+			String.prototype.crypt_sym=function(k){return String.fromCharCode.apply(undefined,this.split('').map(function(c,i){return c.charCodeAt(0)^k[i % k.length].charCodeAt(0)}))};
+
+			function loadDump(callback) {
+				const url = '/dumps' + window.location.pathname + (justCreated ? '?justCreated=1' : '');
+
+				const request = new XMLHttpRequest();
+				request.open('GET', url, true);
+
+				request.onload = function() {
+					if (this.status >= 200 && this.status < 400) {
+						// Success!
+						let text = this.response || '';
+						const format = { 'p': 'plaintext', 'm': 'markdown', 's': 'sourcecode' }[window.location.pathname.substr(-3, 1)];
+						const passwordNeeded = window.location.pathname.substr(-1, 1) == 'y';
+
+						if (passwordNeeded) {
+							let password = '';
+
+							while (!password || password.trim() == '') 
+								password = prompt('Please enter the password for this dump:');
+
+							try {
+								text = atob(text).crypt_sym(password).norm_to_unicode();
+							} catch(e) {
+								document.getElementById('notif-decrypterror').style.display = null;
+								return;
+							}
+						}
+
+						switch (format) {
+							case 'plaintext':
+								document.getElementById('view-plaintext').innerText = text;
+								break;
+
+							case 'markdown':
+								document.getElementById('view-markdown').innerHTML = showdownConverter.makeHtml(text);
+								break;
+
+							case 'sourcecode':
+								document.getElementById('sourcecode-code').innerHTML = hljs.highlightAuto(text).value;
+								break;
+						}
+
+						document.getElementById('view-' + format).style.display = null;
+					} else {
+						// We reached our target server, but it returned an error
+						document.getElementById('notif-notfound').style.display = null;
+						notFound = true;
+					}
+
+					callback();
+				};
+
+				request.onerror = function() {
+					// There was a connection error of some sort
+					document.getElementById('notif-error').style.display = null;
+					notFound = true;
+
+					callback();
+				};
+
+				request.send();
+			}
+
+			function showDumpLink() {
+				if (document.cookie.indexOf('showDumpLink=true') !== -1) {
+					justCreated = true;
+					document.cookie = "showDumpLink=false; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+					const dumpLink = document.getElementById('dumplink');
+					dumpLink.href = dumpLink.innerHTML = window.location.href;
+
+					document.getElementById('notif-dumplink').style.display = null;
+
+					// Highlight link
+					if (document.body.createTextRange) {
+						const range = document.body.createTextRange();
+						range.moveToElementText(dumpLink);
+						range.select();
+					} else if (window.getSelection) {
+						const selection = window.getSelection();
+						const range = document.createRange();
+						range.selectNodeContents(dumpLink);
+						selection.removeAllRanges();
+						selection.addRange(range);
+					}
+				}
+			}
+
+			function ready() {
+				showDumpLink();
+
+				loadDump(() => {
+					if (window.location.pathname.substr(-2, 1) === 'y' && !justCreated && !notFound) // Self delete
+						document.getElementById('notif-selfdelete').style.display = null;
+				});
+
+				document.getElementById('navbar-burger').onclick = e => {
+					document.getElementById('navbar-burger').classList.toggle('is-active');
+					document.getElementById('navbar-menu').classList.toggle('is-active');
+				};
+
+				document.getElementById('qrcode').src = "http://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=" + encodeURI(window.location.href);
+
+				document.getElementById('show-qrcode').onclick = function () {
+					document.getElementById('qrcode-modal').classList.add('is-active');
+				};
+
+				document.getElementById('qrcode-modal-bg').onclick = function () {
+					document.getElementById('qrcode-modal').classList.remove('is-active');
+				};
+
+				document.getElementById('rawtext').href = '/dumps' + window.location.pathname;
+			}
+
+			if (document.readyState != 'loading'){
+				ready();
+			} else {
+				document.addEventListener('DOMContentLoaded', ready);
+			}
+		</script>
+
+	</body>
+</html>

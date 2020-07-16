@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html class="has-background-grey-dark">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>ESPdump</title>
+		
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.17.1/build/styles/obsidian.min.css">
+
+		<script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/showdown@1.9.1/dist/showdown.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.17.1/build/highlight.min.js"></script>
+
+		<style>
+			.navbar-item {
+				color: #fff !important;
+			}
+
+			.navbar-dropdown .navbar-item:not(.has-dropdown):hover {
+				background-color: #292929 !important;
+			}
+
+			.tabs li:not(.is-active) a:hover {
+				background-color: #4a4a4a !important;
+			}
+
+			.content h1, .content h2, .content h3, .content h4, .content h5, .content h6, .content strong, .content th {
+				color: #fff !important;
+			}
+
+			.content blockquote p {
+				color: #4a4a4a !important;
+			}
+
+			.content a:hover {
+				color: #2f5ca6 !important;
+			}
+		</style>
+	</head>
+	<body class="has-navbar-fixed-top">
+		<nav class="navbar is-dark is-fixed-top" role="navigation" aria-label="main navigation">
+			<div class="container">
+				<div class="navbar-brand">
+					<div class="navbar-item">
+						<h5 class="title is-5 has-text-white">
+							ESPdump
+						</h5>
+					</div>
+
+					<a id="navbar-burger" role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false">
+						<span aria-hidden="true"></span>
+						<span aria-hidden="true"></span>
+						<span aria-hidden="true"></span>
+					</a>
+				</div>
+
+				<div class="navbar-menu has-background-dark" id="navbar-menu">
+					<div class="navbar-start">
+						<div class="navbar-item">
+							<a class="button is-success" target="_blank" href="/">
+								<span class="icon">
+									<i class="fas fa-file"></i>
+								</span>
+								<span>
+									New
+								</span>
+							</a>
+						</div>
+
+						<div class="navbar-item has-dropdown" id="format-dropdown">
+							<a class="navbar-link has-text-white" id="format-dropdown-trigger">
+								Format:&nbsp;<span id="format">Plain Text</span>
+							</a>
+
+							<div class="navbar-dropdown has-background-dark">
+								<a class="navbar-item format-switch" id="plaintext">
+									<span class="icon is-medium">
+										<i class="fas fa-file-alt" aria-hidden="true"></i>
+									</span>
+									<span>Plain Text</span>
+								</a>
+
+								<a class="navbar-item format-switch" id="markdown">
+									<span class="icon is-medium">
+										<i class="fab fa-markdown" aria-hidden="true"></i>
+									</span>
+									<span>Markdown</span>
+								</a>
+
+								<a class="navbar-item format-switch" id="sourcecode">
+									<span class="icon is-medium">
+										<i class="fas fa-code" aria-hidden="true"></i>
+									</span>
+									<span>Source Code</span>
+								</a>
+							</div>
+						</div>
+
+						<div class="navbar-item">
+							<label class="checkbox has-text-white">
+								<input type="checkbox" id="self-delete">
+								Self-deleting dump
+							</label>
+						</div>
+
+						<div class="navbar-item">
+							<div class="field">
+								<div class="control has-icons-left">
+									<input class="input" type="password" placeholder="Password (optional)" data-lpignore="true" id="password">
+									<span class="icon is-small is-left">
+										<i class="fas fa-lock"></i>
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="navbar-end">
+						<div class="navbar-item">
+							<button class="button is-info" id="save-btn">
+								<span class="icon">
+									<i class="fas fa-save"></i>
+								</span>
+								<span>
+									Save
+								</span>
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</nav>
+
+		<main class="columns is-centered is-vcentered has-text-white" style="margin-top: 1rem;">
+			<div class="column is-half">
+
+				<div id="notif">
+					<div class="notification is-warning" id="notif-createerror" style="display: none">
+						<span class="icon" style="vertical-align: text-top;">
+							<i class="fas fa-exclamation-triangle"></i>
+						</span>
+						<span>Could not create dump. Please try again later!</span>
+					</div>
+
+					<div class="notification is-danger" id="notif-error" style="display: none; margin-bottom: 1.5rem;">
+						<span class="icon" style="vertical-align: text-top;">
+							<i class="fas fa-exclamation"></i>
+						</span>
+						<span>An error occured.</span>
+					</div>
+				</div>
+
+				<div class="tabs is-toggle is-toggle-rounded is-fullwidth is-centered is-medium">
+					<ul>
+						<li class="is-active">
+							<a class="has-text-white" id="tab-editor">
+								<span class="icon is-small"><i class="fas fa-edit" aria-hidden="true"></i></span>
+								<span>Editor</span>
+							</a>
+						</li>
+						<li>
+							<a class="has-text-white" id="tab-preview">
+								<span class="icon is-small"><i class="fas fa-eye" aria-hidden="true"></i></span>
+								<span>Preview</span>
+							</a>
+						</li>
+					</ul>
+				</div>
+
+				<div id="editor">
+					<textarea id="message" name="message" style="height: calc(100vh - 12rem);" class="textarea has-background-dark has-text-white is-family-monospace has-fixed-size"></textarea>
+				</div>
+
+				<div id="preview" style="display: none;">
+					<div id="preview-plaintext" class="box has-background-dark has-text-white is-family-monospace" style="white-space: pre-wrap; word-break: break-all;"></div>
+
+					<div id="preview-markdown" class="content has-text-white" style="display: none;"></div>
+
+					<div id="preview-sourcecode" style="display: none;">
+						<pre class="has-text-white has-background-grey-dark is-paddingless"><code id="sourcecode-code" class="hljs"></code></pre>
+					</div>
+				</div>
+
+			</div>
+		</main>
+
+		<script type="application/javascript">
+			let currentTab = 'editor';
+			let currentFormat = 'plaintext';
+
+			const showdownConverter = new showdown.Converter({
+				strikethrough: true,
+				tables: true,
+				tablesHeaderId: true,
+				simplifiedAutoLink: true,
+				excludeTrailingPunctuationFromURLs: true,
+				openLinksInNewWindow: true
+			});
+
+			String.prototype.norm_to_ascii=function(){return unescape(encodeURIComponent(this))};
+			String.prototype.crypt_sym=function(k){return String.fromCharCode.apply(undefined,this.split('').map(function(c,i){return c.charCodeAt(0)^k[i % k.length].charCodeAt(0)}))};
+
+			function setFormat(format) {
+				const formats = {
+					plaintext: 'Plain Text',
+					markdown: 'Markdown',
+					sourcecode: 'Source Code',
+				};
+
+				if (!Object.keys(formats).includes(format)) return;
+
+				document.getElementById('format').innerHTML = formats[format];
+				
+				document.getElementById('preview-' + currentFormat).style.display = 'none';
+				document.getElementById('preview-' + format).style.display = null;
+
+				currentFormat = format;
+
+				if (currentTab == 'preview')
+					updatePreview();
+
+				document.getElementById('format-dropdown').classList.remove('is-active');
+			}
+
+			function updatePreview() {
+				const text = document.getElementById('message').value;
+
+				switch (currentFormat) {
+					case 'plaintext':
+						document.getElementById('preview-plaintext').innerText = text;
+						break;
+
+					case 'markdown':
+						document.getElementById('preview-markdown').innerHTML = showdownConverter.makeHtml(text);
+						break;
+
+					case 'sourcecode':
+						document.getElementById('sourcecode-code').innerHTML = hljs.highlightAuto(text).value;
+						break;
+				}
+			}
+
+			function setTab(tab) {
+				if (tab == 'preview')
+					updatePreview();
+
+				document.getElementById('tab-' + currentTab).parentNode.classList.remove('is-active');
+				document.getElementById(currentTab).style.display = 'none';
+
+				currentTab = tab;
+
+				document.getElementById('tab-' + currentTab).parentNode.classList.add('is-active');
+				document.getElementById(currentTab).style.display = null;
+			}
+
+			function save() {
+				let text = document.getElementById('message').value;
+				const format = { 'markdown': 'm', 'plaintext': 'p', 'sourcecode': 's' }[currentFormat];
+				const selfDelete = document.getElementById('self-delete').checked;
+				const password = document.getElementById('password').value;
+				let passwordNeeded = false;
+
+				if (password.trim() !== '') {
+					text = btoa(text.norm_to_ascii().crypt_sym(password));
+					passwordNeeded = true;
+				}
+
+				const request = new XMLHttpRequest();
+				request.open('POST', '/create?format=' + format + '&selfdel=' + (selfDelete ? 'y' : 'n') + '&password=' + (passwordNeeded ? 'y' : 'n'));
+				
+				request.onload = function() {
+					if (this.status >= 200 && this.status < 400) {
+						// Success!
+						const response = JSON.parse(this.response);
+
+						if (!response.filename || response.filename === '') {
+							document.getElementById('notif-createerror').style.display = null;
+							return;
+						}
+
+						document.cookie = 'showDumpLink=true; path=/';
+						window.location.href = '/' + response.filename;
+					} else {
+						// We reached our target server, but it returned an error
+						document.getElementById('notif-createerror').style.display = null;
+					}
+				};
+
+				request.onerror = function() {
+					// There was a connection error of some sort
+					document.getElementById('notif-error').style.display = null;
+				};
+
+				const formData = new FormData();
+				formData.append('data', new Blob([text], { type: 'text/plain' }), 'textdump.txt');
+				
+				request.send(formData);
+			}
+
+			function ready() {
+				[...document.getElementsByClassName('format-switch')].forEach(el => el.onclick = () => setFormat(el.id));
+
+				document.getElementById('tab-editor').onclick = () => setTab('editor');
+				document.getElementById('tab-preview').onclick = () => setTab('preview');
+
+				document.getElementById('format-dropdown-trigger').onclick = () => document.getElementById('format-dropdown').classList.toggle('is-active');
+
+				document.getElementById('navbar-burger').onclick = e => {
+					document.getElementById('navbar-burger').classList.toggle('is-active');
+					document.getElementById('navbar-menu').classList.toggle('is-active');
+				};
+
+				document.getElementById('save-btn').onclick = save;
+			}
+
+			if (document.readyState != 'loading'){
+				ready();
+			} else {
+				document.addEventListener('DOMContentLoaded', ready);
+			}
+		</script>
+	</body>
+</html>
